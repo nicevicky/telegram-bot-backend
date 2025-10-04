@@ -26,6 +26,7 @@
   ],
   "env": {
     "API_SECRET_KEY": "telegram-bot-api-key-runner",
-    "ALLOWED_ORIGINS": "@http://botcreator.iceiy.com"
+    "ALLOWED_ORIGINS": "http://botcreator.iceiy.com",
+    "WEBHOOK_SECRET": "telegram-bot-api-key-runner"
   }
 }
