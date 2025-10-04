@@ -3,14 +3,24 @@
   "version": "1.0.0",
   "description": "Vercel backend for Telegram Bot Platform",
   "main": "index.js",
+  "type": "commonjs",
   "scripts": {
     "dev": "vercel dev",
-    "deploy": "vercel --prod"
+    "build": "echo 'Build complete'",
+    "start": "node index.js"
   },
   "dependencies": {
-    "node-fetch": "^2.6.7"
+    "node-fetch": "^2.7.0"
   },
   "engines": {
-    "node": "18.x"
-  }
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "api",
+    "vercel"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
 }
