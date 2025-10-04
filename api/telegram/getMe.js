@@ -1,52 +1,56 @@
-/**
- * Get bot information endpoint
- */
+const TelegramAPI = require('../../lib/telegram');
 
-import { handleCors, createResponse, handleApiError, logRequest } from '../../lib/utils.js';
-import { verifyApiKey, validateBotToken, checkRateLimit } from '../../lib/auth.js';
-import { getBotInfo } from '../../lib/telegram.js';
-
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   // Handle CORS
-  if (handleCors(req, res)) return;
-  
-  // Only allow POST requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
-    return res.status(405).json(createResponse(false, null, 'Method not allowed'));
+    return res.status(405).json({
+      success: false,
+      error: 'Method not allowed'
+    });
   }
-  
+
   try {
-    // Log request
-    logRequest(req, { endpoint: 'getMe' });
-    
-    // Verify API key
-    if (!verifyApiKey(req)) {
-      return res.status(401).json(createResponse(false, null, 'Unauthorized'));
-    }
-    
-    // Rate limiting
-    const clientIp = req.headers['x-forwarded-for'] || req.connection?.remoteAddress;
-    if (!checkRateLimit(clientIp, 60, 60000)) { // 60 requests per minute
-      return res.status(429).json(createResponse(false, null, 'Rate limit exceeded'));
-    }
-    
     const { token } = req.body;
-    
-    // Validate token
-    if (!validateBotToken(token)) {
-      return res.status(400).json(createResponse(false, null, 'Invalid bot token format'));
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        error: 'Bot token is required'
+      });
     }
-    
-    // Get bot info from Telegram
-    const result = await getBotInfo(token);
-    
+
+    // Validate token format
+    if (!/^\d+:[A-Za-z0-9_-]{35}$/.test(token)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid bot token format'
+      });
+    }
+
+    const telegram = new TelegramAPI(token);
+    const result = await telegram.getMe();
+
     if (result.success) {
-      res.status(200).json(createResponse(true, result.data, 'Bot information retrieved successfully'));
+      return res.status(200).json({
+        success: true,
+        result: result.data
+      });
     } else {
-      res.status(400).json(createResponse(false, null, result.error || 'Failed to get bot information'));
+      return res.status(400).json({
+        success: false,
+        error: result.error,
+        error_code: result.error_code
+      });
     }
-    
   } catch (error) {
-    handleApiError(res, error);
+    console.error('getMe error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
   }
-}
+};
