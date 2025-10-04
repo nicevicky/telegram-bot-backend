@@ -1,63 +1,71 @@
-/**
- * Send message endpoint
- */
+const TelegramAPI = require('../../lib/telegram');
 
-import { handleCors, createResponse, handleApiError, logRequest, validateRequiredFields } from '../../lib/utils.js';
-import { verifyApiKey, validateBotToken, checkRateLimit } from '../../lib/auth.js';
-import { sendMessage } from '../../lib/telegram.js';
-
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   // Handle CORS
-  if (handleCors(req, res)) return;
-  
-  // Only allow POST requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
-    return res.status(405).json(createResponse(false, null, 'Method not allowed'));
+    return res.status(405).json({
+      success: false,
+      error: 'Method not allowed'
+    });
   }
-  
+
   try {
-    // Log request
-    logRequest(req, { endpoint: 'sendMessage' });
-    
-    // Verify API key
-    if (!verifyApiKey(req)) {
-      return res.status(401).json(createResponse(false, null, 'Unauthorized'));
+    const { 
+      token, 
+      chat_id, 
+      text, 
+      parse_mode, 
+      reply_markup, 
+      disable_web_page_preview,
+      disable_notification,
+      reply_to_message_id
+    } = req.body;
+
+    if (!token || !chat_id || !text) {
+      return res.status(400).json({
+        success: false,
+        error: 'Token, chat_id, and text are required'
+      });
     }
-    
-    // Rate limiting
-    const clientIp = req.headers['x-forwarded-for'] || req.connection?.remoteAddress;
-    if (!checkRateLimit(clientIp, 100, 60000)) { // 100 requests per minute
-      return res.status(429).json(createResponse(false, null, 'Rate limit exceeded'));
+
+    // Validate token format
+    if (!/^\d+:[A-Za-z0-9_-]{35}$/.test(token)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid bot token format'
+      });
     }
-    
-    // Validate required fields
-    const missing = validateRequiredFields(req.body, ['token', 'chat_id', 'text']);
-    if (missing.length > 0) {
-      return res.status(400).json(createResponse(false, null, `Missing required fields: ${missing.join(', ')}`));
-    }
-    
-    const { token, chat_id, text, ...options } = req.body;
-    
-    // Validate token
-    if (!validateBotToken(token)) {
-      return res.status(400).json(createResponse(false, null, 'Invalid bot token format'));
-    }
-    
-    // Validate message text length
-    if (text.length > 4096) {
-      return res.status(400).json(createResponse(false, null, 'Message text too long (max 4096 characters)'));
-    }
-    
-    // Send message
-    const result = await sendMessage(token, chat_id, text, options);
-    
+
+    const telegram = new TelegramAPI(token);
+    const result = await telegram.sendMessage(chat_id, text, {
+      parse_mode,
+      reply_markup,
+      disable_web_page_preview,
+      disable_notification,
+      reply_to_message_id
+    });
+
     if (result.success) {
-      res.status(200).json(createResponse(true, result.data, 'Message sent successfully'));
+      return res.status(200).json({
+        success: true,
+        result: result.data
+      });
     } else {
-      res.status(400).json(createResponse(false, null, result.error || 'Failed to send message'));
+      return res.status(400).json({
+        success: false,
+        error: result.error,
+        error_code: result.error_code
+      });
     }
-    
   } catch (error) {
-    handleApiError(res, error);
+    console.error('sendMessage error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
   }
-}
+};
