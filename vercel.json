@@ -2,7 +2,7 @@
   "version": 2,
   "functions": {
     "api/**/*.js": {
-      "runtime": "nodejs20.x"
+      "runtime": "nodejs18.x"
     }
   },
   "headers": [
@@ -19,14 +19,9 @@
         },
         {
           "key": "Access-Control-Allow-Headers",
-          "value": "X-Requested-With, Content-Type, Accept, Authorization, X-API-Key"
+          "value": "Content-Type, Authorization"
         }
       ]
     }
-  ],
-  "env": {
-    "API_SECRET_KEY": "telegram-bot-api-key-runner",
-    "ALLOWED_ORIGINS": "http://botcreator.iceiy.com",
-    "WEBHOOK_SECRET": "telegram-bot-api-key-runner"
-  }
+  ]
 }
