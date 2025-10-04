@@ -25,7 +25,7 @@
     }
   ],
   "env": {
-    "API_SECRET_KEY": "@api_secret_key",
-    "ALLOWED_ORIGINS": "@allowed_origins"
+    "API_SECRET_KEY": "@API_SECRET_KEY",
+    "ALLOWED_ORIGINS": "@ALLOWED_ORIGINS"
   }
 }
