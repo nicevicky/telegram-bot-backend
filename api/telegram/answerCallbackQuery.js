@@ -1,51 +1,68 @@
-/**
- * Answer callback query endpoint
- */
+const TelegramAPI = require('../../lib/telegram');
 
-import { handleCors, createResponse, handleApiError, logRequest, validateRequiredFields } from '../../lib/utils.js';
-import { verifyApiKey, validateBotToken, checkRateLimit } from '../../lib/auth.js';
-import { answerCallbackQuery } from '../../lib/telegram.js';
-
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   // Handle CORS
-  if (handleCors(req, res)) return;
-  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
-    return res.status(405).json(createResponse(false, null, 'Method not allowed'));
+    return res.status(405).json({
+      success: false,
+      error: 'Method not allowed'
+    });
   }
-  
+
   try {
-    logRequest(req, { endpoint: 'answerCallbackQuery' });
-    
-    if (!verifyApiKey(req)) {
-      return res.status(401).json(createResponse(false, null, 'Unauthorized'));
+    const { 
+      token, 
+      callback_query_id, 
+      text, 
+      show_alert, 
+      url, 
+      cache_time 
+    } = req.body;
+
+    if (!token || !callback_query_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Token and callback_query_id are required'
+      });
     }
-    
-    const clientIp = req.headers['x-forwarded-for'] || req.connection?.remoteAddress;
-    if (!checkRateLimit(clientIp, 200, 60000)) {
-      return res.status(429).json(createResponse(false, null, 'Rate limit exceeded'));
+
+    // Validate token format
+    if (!/^\d+:[A-Za-z0-9_-]{35}$/.test(token)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid bot token format'
+      });
     }
-    
-    const missing = validateRequiredFields(req.body, ['token', 'callback_query_id']);
-    if (missing.length > 0) {
-      return res.status(400).json(createResponse(false, null, `Missing required fields: ${missing.join(', ')}`));
-    }
-    
-    const { token, callback_query_id, ...options } = req.body;
-    
-    if (!validateBotToken(token)) {
-      return res.status(400).json(createResponse(false, null, 'Invalid bot token format'));
-    }
-    
-    const result = await answerCallbackQuery(token, callback_query_id, options);
-    
+
+    const telegram = new TelegramAPI(token);
+    const result = await telegram.answerCallbackQuery(callback_query_id, {
+      text,
+      show_alert,
+      url,
+      cache_time
+    });
+
     if (result.success) {
-      res.status(200).json(createResponse(true, result.data, 'Callback query answered successfully'));
+      return res.status(200).json({
+        success: true,
+        result: result.data
+      });
     } else {
-      res.status(400).json(createResponse(false, null, result.error || 'Failed to answer callback query'));
+      return res.status(400).json({
+        success: false,
+        error: result.error,
+        error_code: result.error_code
+      });
     }
-    
   } catch (error) {
-    handleApiError(res, error);
+    console.error('answerCallbackQuery error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
   }
-}
+};
